@@ -3,11 +3,12 @@ import jwt from 'jsonwebtoken';
 import User from './user.model.js';
 import { sendOTPEmail } from '../../utils/email.utils.js';
 import { generateOTP, verifyOTP } from '../../utils/otp.utils.js';
+import {Username, username} from '../../utils/username.utils.js'
 
 // User registration
 const registerUser = async (req, res) => {
   try {
-    const { phoneNumber, email, username, password } = req.body;
+    const { phoneNumber, email, password } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ $or: [{ phoneNumber }, { email }, { username }] });
@@ -21,6 +22,10 @@ const registerUser = async (req, res) => {
     // Generate OTP
     const otp = generateOTP();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+
+    //Generate username
+    const username = Username()
+
 
     // Create new user
     const newUser = new User({
@@ -63,7 +68,7 @@ const loginUser = async (req, res) => {
     }
 
     // Generate JWT token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
     res.status(200).json({ token });
   } catch (err) {
@@ -75,13 +80,7 @@ const loginUser = async (req, res) => {
 // OTP verification
 const verifymyOTP = async (req, res) => {
   try {
-    const { email, otp } = req.body;
-
-    // Check if user exists
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid email or OTP' });
-    }
+    const { otp } = req.body;
 
     // Verify OTP
     const isOTPValid = verifyOTP(otp, user.otp);
@@ -108,3 +107,39 @@ const verifymyOTP = async (req, res) => {
 };
 
 export default { registerUser, loginUser, verifymyOTP };
+
+
+// OTP verification
+// const verifymyOTP = async (req, res) => {
+//   try {
+//     const { email, otp } = req.body;
+
+//     // Check if user exists
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//       return res.status(400).json({ message: 'Invalid email or OTP' });
+//     }
+
+//     // Verify OTP
+//     const isOTPValid = verifyOTP(otp, user.otp);
+//     if (!isOTPValid) {
+//       return res.status(400).json({ message: 'Invalid OTP' });
+//     }
+
+//     // Check if OTP has expired
+//     const now = new Date();
+//     if (now > user.otpExpiry) {
+//       return res.status(400).json({ message: 'OTP has expired' });
+//     }
+
+//     // Update user's OTP and OTP expiry
+//     user.otp = null;
+//     user.otpExpiry = null;
+//     await user.save();
+
+//     res.status(200).json({ message: 'OTP verified successfully' });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: 'Internal server error' });
+//   }
+// };
