@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import User from './user.model.js';
 import { sendOTPEmail } from '../../utils/email.utils.js';
 import { generateOTP, verifyOTP } from '../../utils/otp.utils.js';
-import {Username, username} from '../../utils/username.utils.js'
+import {Username} from '../../utils/username.utils.js'
 
 // User registration
 const registerUser = async (req, res) => {
@@ -46,7 +46,7 @@ const registerUser = async (req, res) => {
     res.status(201).json({ message: 'User registered successfully. Please verify your OTP.' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error register' });
   }
 };
 
@@ -102,7 +102,7 @@ const verifymyOTP = async (req, res) => {
     res.status(200).json({ message: 'OTP verified successfully' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error OTP' });
   }
 };
 
