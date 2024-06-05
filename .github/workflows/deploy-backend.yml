@@ -28,7 +28,7 @@ jobs:
             username: ${{ secrets.EC2_USERNAME }} # Your EC2 username 
             key: ${{ secrets.EC2_SSH_KEY }}
             script: |
-                cd /home/ventiebackend 
+                cd /home/admin/ventiebackend 
                 git pull origin main
                 npm install
-                pm2 restart ventiebackend
+                pm2 restart ventibackend
