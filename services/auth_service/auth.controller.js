@@ -29,8 +29,7 @@ const registerUser = async (req, res) => {
       username,
       password: hashedPassword,
       otp,
-      otpExpiry,
-      verified: false
+      otpExpiry
     });
 
     // Save user to database
