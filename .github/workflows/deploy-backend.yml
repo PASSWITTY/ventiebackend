@@ -31,4 +31,4 @@ jobs:
                 cd /home/admin/ventiebackend 
                 git pull origin main
                 npm install
-                pm2 restart ventibackend
+                pm2 restart ventiebackend
