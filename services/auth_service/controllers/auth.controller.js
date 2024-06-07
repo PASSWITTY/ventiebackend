@@ -63,15 +63,19 @@ const loginUser = async (req, res) => {
     }
 
     // Check if password is correct
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, User.password);
     if (!isPasswordValid) {
       return res.status(400).json({ message: 'Invalid email/phone or password' });
     }
 
     // Generate JWT token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ userId: User._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
-    res.status(200).json({ status: 'success', userId: user._id, username: user.username, token });
+
+    User.token = token;
+    await User.save();
+
+    res.status(200).json({ status: 'success', userId: User._id, username: User.username, token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ status: 'error',message: 'Internal server error' });
@@ -84,23 +88,26 @@ const verifymyOTP = async (req, res) => {
     const { otp } = req.body;
 
     // Verify OTP
-    const isOTPValid = verifyOTP(otp, user.otp);
+    const isOTPValid = verifyOTP(otp, User.otp);
     if (!isOTPValid) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
     // Check if OTP has expired
     const now = new Date();
-    if (now > user.otpExpiry) {
+    if (now > User.otpExpiry) {
       return res.status(400).json({ message: 'OTP has expired' });
+
     }
-
+    const token = jwt.sign({ userId: User._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
     // Update user's OTP and OTP expiry
-    user.otp = null;
-    user.otpExpiry = null;
-    await user.save();
+    User.otp = null;
+    User.otpExpiry = null;
+    User.token = token;
+    await User.save();
+    
 
-    res.status(200).json({ message: 'OTP verified successfully' , userId: user._id, username: user.username, token });
+    res.status(200).json({ message: 'OTP verified successfully' , userId: User._id, username: User.username, token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error OTP' });
@@ -122,9 +129,10 @@ const resendOTP = async (req, res) => {
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
 
     // Update user's OTP and OTP expiry
-    user.otp = otp;
-    user.otpExpiry = otpExpiry;
-    await user.save();
+    
+    User.otp = otp;
+    User.otpExpiry = otpExpiry;
+    await User.save();
 
     // Send new OTP to user's email
     await sendOTPEmail(email, otp);
@@ -151,9 +159,9 @@ const resetPassword = async (req, res) => {
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
 
     // Update user's OTP and OTP expiry
-    user.otp = otp;
-    user.otpExpiry = otpExpiry;
-    await user.save();
+    User.otp = otp;
+    User.otpExpiry = otpExpiry;
+    await User.save();
 
     // Send OTP to user's email
     await sendOTPEmail(email, otp);
@@ -176,30 +184,33 @@ const updatePasswordWithOTP = async (req, res) => {
     }
 
     // Verify OTP
-    const isOTPValid = verifyOTP(otp, user.otp);
+    const isOTPValid = verifyOTP(otp, User.otp);
     if (!isOTPValid) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
     // Check if OTP has expired
     const now = new Date();
-    if (now > user.otpExpiry) {
+    if (now > User.otpExpiry) {
       return res.status(400).json({ message: 'OTP has expired' });
     }
 
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
+    // Generate JWT token
+    const token = jwt.sign({ userId: User._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+
 
     // Update user's password and reset OTP and OTP expiry
-    user.password = hashedPassword;
-    user.otp = null;
-    user.otpExpiry = null;
-    await user.save();
+    User.password = hashedPassword;
+    User.token = token
+    User.otp = null;
+    User.otpExpiry = null;
+    await User.save();
 
-     // Generate JWT token
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    
 
-    res.status(200).json({ status: 'success',  userId: user._id, username: user.username, token });
+    res.status(200).json({ status: 'success',  userId: User._id, username: User.username, token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error' });
@@ -217,7 +228,7 @@ const updatePassword = async (req, res) => {
     }
 
     // Check if current password is correct
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    const isPasswordValid = await bcrypt.compare(currentPassword, User.password);
     if (!isPasswordValid) {
       return res.status(400).json({ status: 'error', message: 'Current password is incorrect' });
     }
@@ -226,8 +237,8 @@ const updatePassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update user's password
-    user.password = hashedPassword;
-    await user.save();
+    User.password = hashedPassword;
+    await User.save();
 
     res.status(200).json({ status: 'success', message: 'Password updated successfully' });
   } catch (err) {
@@ -250,13 +261,12 @@ const createCreatorUser = async (req, res) => {
 
     // Check if the user exists and is a general user (userType 0)
     const user = await User.findById(userId);
-    if (!user || user.userType !== 0) {
+    if (!user || User.userType !== 0) {
       return res.status(400).json({ message: 'Already a creator' });
     }
 
     // Create a new creator user
     const newCreatorUser = new CreatorUser({
-      userId,
       fullName,
       idNumber,
       address,
@@ -269,10 +279,10 @@ const createCreatorUser = async (req, res) => {
     await newCreatorUser.save();
 
     // Update the user's userType to 1 (creator)
-    user.userType = 1;
-    await user.save();
+    User.userType = 1;
+    await User.save();
 
-    res.status(201).json({ message: 'Creator user created successfully' });
+    res.status(201).json({ message: 'Creator user created successfully', usertype: User.userType, token:User.token , fullName : CreatorUser.fullName, profileImage: CreatorUser.profileImage  });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error' });
@@ -301,15 +311,15 @@ const updateUserProfile = async (req, res) => {
 
     // Update bio
     if (req.body.bio) {
-      user.bio = req.body.bio;
+      User.bio = req.body.bio;
     }
 
     // Update profile picture
     if (req.file) {
-      user.profilePicture = req.file.path;
+      User.profilePicture = req.file.path;
     }
 
-    await user.save();
+    await User.save();
 
     res.status(200).json({ status: 'success', message: 'User profile updated successfully' });
   } catch (err) {
@@ -341,7 +351,7 @@ const updateCreatorProfile = async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'User not found' });
     }
 
-    // Update bio
+    // Update 
     if (req.body.address) {
       CreatorUser.address = req.body.address;
     }
@@ -355,7 +365,7 @@ const updateCreatorProfile = async (req, res) => {
       CreatorUser.bankAccNumber= req.body.bankAccNumber;
     }
     
-    await user.save();
+    await CreatorUser.save();
 
     res.status(200).json({ status: 'success', message: 'Creator profile updated successfully' });
   } catch (err) {
