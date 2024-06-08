@@ -88,8 +88,7 @@ const verifymyOTP = async (req, res) => {
     const { otp } = req.body;
 
     // Verify OTP
-    const isOTPValid = verifyOTP(otp, User.otp);
-    if (!isOTPValid) {
+    if (otp !==User.otp) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
