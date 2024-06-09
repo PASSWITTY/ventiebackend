@@ -11,14 +11,14 @@ router.post('/register', authController.registerUser);
 router.post('/login', authController.loginUser);
 
 // OTP verification
-router.post('/verify-otp', authController.verifymyOTP);
+router.post('/verify-otp', authController.verifyOTP);
 
 //Otp resend
 router.post('/resend-otp', authController.resendOTP);
 
-router.post('/reset-pwd-otp', authController.resetPassword);
+router.post('/request-reset-pwd-otp', authController.resetPassword);
 
-router.post('/update-forgot-pwd', authController.updatePasswordWithOTP);
+router.post('/update-forgot-pwd', authController.updatePassword);
 
 router.post('/create-creator-user',uploadMiddlewareMM, authController.createCreatorUser);
 
