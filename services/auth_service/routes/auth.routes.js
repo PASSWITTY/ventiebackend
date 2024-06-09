@@ -5,10 +5,10 @@ import {uploadMiddlewarePP, uploadMiddlewareMM} from '../middlewares/uploadMiddl
 const router = express.Router();
 
 // User registration
-router.post('/register', authController.registerUser);
+router.post('/register', authController.registeruser);
 
 // User login
-router.post('/login', authController.loginUser);
+router.post('/login', authController.loginuser);
 
 // OTP verification
 router.post('/verify-otp', authController.verifymyOTP);
@@ -20,9 +20,9 @@ router.post('/reset-pwd-otp', authController.resetPassword);
 
 router.post('/update-forgot-pwd', authController.updatePasswordWithOTP);
 
-router.post('/create-creator-user',uploadMiddlewareMM, authController.createCreatorUser);
+router.post('/create-creator-user',uploadMiddlewareMM, authController.createCreatoruser);
 
-router.put('/update-user-profile', uploadMiddlewarePP, authController.updateUserProfile);
+router.put('/update-user-profile', uploadMiddlewarePP, authController.updateuserProfile);
 
 router.put('/update-creator-profile', authController.updateCreatorProfile);
 

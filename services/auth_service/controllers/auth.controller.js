@@ -1,20 +1,20 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
-import CreatorUser from '../models/creatorUser.model.js';
+import Creatoruser from '../models/creatorUser.model.js';
 import { sendOTPEmail } from '../../../utils/email.utils.js';
 import { generateOTP, verifyOTP } from '../../../utils/otp.utils.js';
-import {Username} from '../../../utils/username.utils.js'
+import { Username } from '../../../utils/username.utils.js'
 
-// User registration
-const registerUser = async (req, res) => {
+// user registration
+const registeruser = async (req, res) => {
   try {
     const { phoneNumber, email, password } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ $or: [{ phoneNumber }, { email }] });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+    const existinguser = await User.findOne({ $or: [{ phoneNumber }, { email }] });
+    if (existinguser) {
+      return res.status(400).json({ message: 'user already exists' });
     }
 
     // Hash the password
@@ -44,15 +44,15 @@ const registerUser = async (req, res) => {
     // Send OTP to user's email
     await sendOTPEmail(email, otp);
 
-    res.status(201).json({ message: 'User registered successfully. Please verify your OTP.' });
+    res.status(201).json({ message: 'user registered successfully. Please verify your OTP.', status: '200' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error register' });
   }
 };
 
-// User login
-const loginUser = async (req, res) => {
+// user login
+const loginuser = async (req, res) => {
   try {
     const { emailOrPhone, password } = req.body;
 
@@ -63,51 +63,57 @@ const loginUser = async (req, res) => {
     }
 
     // Check if password is correct
-    const isPasswordValid = await bcrypt.compare(password, User.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(400).json({ message: 'Invalid email/phone or password' });
     }
 
     // Generate JWT token
-    const token = jwt.sign({ userId: User._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
 
-    User.token = token;
-    await User.save();
+    user.token = token;
+    await user.save();
 
-    res.status(200).json({ status: 'success', userId: User._id, username: User.username, token });
+    res.status(200).json({ message: 'Login Succesfull',status: '200', userId: user._id, username: user.username, token });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ status: 'error',message: 'Internal server error' });
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };
 
 // OTP verification
 const verifymyOTP = async (req, res) => {
   try {
-    const { otp } = req.body;
+    const { otp, email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'user not found' });
+    }
+
 
     // Verify OTP
-    const isOTPValid = verifyOTP(otp, User.otp);
+    const isOTPValid = verifyOTP(otp, user.otp);
     if (!isOTPValid) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
     // Check if OTP has expired
     const now = new Date();
-    if (now > User.otpExpiry) {
+    if (now > user.otpExpiry) {
       return res.status(400).json({ message: 'OTP has expired' });
 
     }
-    const token = jwt.sign({ userId: User._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
     // Update user's OTP and OTP expiry
-    User.otp = null;
-    User.otpExpiry = null;
-    User.token = token;
-    await User.save();
-    
+    user.otp = null;
+    user.otpExpiry = null;
+    user.token = token;
+    await user.save();
 
-    res.status(200).json({ message: 'OTP verified successfully' , userId: User._id, username: User.username, token });
+
+    res.status(200).json({ message: 'OTP verified successfully',status: '200', userId: user._id, username: user.username, token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error OTP' });
@@ -121,7 +127,7 @@ const resendOTP = async (req, res) => {
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'User not found' });
+      return res.status(400).json({ message: 'user not found' });
     }
 
     // Generate new OTP
@@ -129,10 +135,10 @@ const resendOTP = async (req, res) => {
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
 
     // Update user's OTP and OTP expiry
-    
-    User.otp = otp;
-    User.otpExpiry = otpExpiry;
-    await User.save();
+
+    user.otp = otp;
+    user.otpExpiry = otpExpiry;
+    await user.save();
 
     // Send new OTP to user's email
     await sendOTPEmail(email, otp);
@@ -151,7 +157,7 @@ const resetPassword = async (req, res) => {
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'User not found' });
+      return res.status(400).json({ message: 'user not found' });
     }
 
     // Generate OTP
@@ -159,9 +165,9 @@ const resetPassword = async (req, res) => {
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // OTP expires in 10 minutes
 
     // Update user's OTP and OTP expiry
-    User.otp = otp;
-    User.otpExpiry = otpExpiry;
-    await User.save();
+    user.otp = otp;
+    user.otpExpiry = otpExpiry;
+    await user.save();
 
     // Send OTP to user's email
     await sendOTPEmail(email, otp);
@@ -180,37 +186,37 @@ const updatePasswordWithOTP = async (req, res) => {
     // Check if user exists
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ message: 'User not found' });
+      return res.status(400).json({ message: 'user not found' });
     }
 
     // Verify OTP
-    const isOTPValid = verifyOTP(otp, User.otp);
+    const isOTPValid = verifyOTP(otp, user.otp);
     if (!isOTPValid) {
       return res.status(400).json({ message: 'Invalid OTP' });
     }
 
     // Check if OTP has expired
     const now = new Date();
-    if (now > User.otpExpiry) {
+    if (now > user.otpExpiry) {
       return res.status(400).json({ message: 'OTP has expired' });
     }
 
     // Hash the new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     // Generate JWT token
-    const token = jwt.sign({ userId: User._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
 
 
     // Update user's password and reset OTP and OTP expiry
-    User.password = hashedPassword;
-    User.token = token
-    User.otp = null;
-    User.otpExpiry = null;
-    await User.save();
+    user.password = hashedPassword;
+    user.token = token
+    user.otp = null;
+    user.otpExpiry = null;
+    await user.save();
 
-    
 
-    res.status(200).json({ status: 'success',  userId: User._id, username: User.username, token });
+
+    res.status(200).json({ status: 'success', userId: user._id, username: user.username, token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error' });
@@ -224,11 +230,11 @@ const updatePassword = async (req, res) => {
     // Check if user exists
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(400).json({ status: 'error', message: 'User not found' });
+      return res.status(400).json({ status: 'error', message: 'user not found' });
     }
 
     // Check if current password is correct
-    const isPasswordValid = await bcrypt.compare(currentPassword, User.password);
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
     if (!isPasswordValid) {
       return res.status(400).json({ status: 'error', message: 'Current password is incorrect' });
     }
@@ -237,8 +243,8 @@ const updatePassword = async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update user's password
-    User.password = hashedPassword;
-    await User.save();
+    user.password = hashedPassword;
+    await user.save();
 
     res.status(200).json({ status: 'success', message: 'Password updated successfully' });
   } catch (err) {
@@ -247,7 +253,7 @@ const updatePassword = async (req, res) => {
   }
 };
 // Creator user 
-const createCreatorUser = async (req, res) => {
+const createCreatoruser = async (req, res) => {
   try {
     const userId = req.body.userId;
     const fullName = req.body.fullName;
@@ -261,12 +267,12 @@ const createCreatorUser = async (req, res) => {
 
     // Check if the user exists and is a general user (userType 0)
     const user = await User.findById(userId);
-    if (!user || User.userType !== 0) {
+    if (!user || user.userType !== 0) {
       return res.status(400).json({ message: 'Already a creator' });
     }
 
     // Create a new creator user
-    const newCreatorUser = new CreatorUser({
+    const newCreatoruser = new Creatoruser({
       fullName,
       idNumber,
       address,
@@ -276,20 +282,20 @@ const createCreatorUser = async (req, res) => {
     });
 
     // Save the creator user to the database
-    await newCreatorUser.save();
+    await newCreatoruser.save();
 
     // Update the user's userType to 1 (creator)
-    User.userType = 1;
-    await User.save();
+    user.userType = 1;
+    await user.save();
 
-    res.status(201).json({ message: 'Creator user created successfully', usertype: User.userType, token:User.token , fullName : CreatorUser.fullName, profileImage: CreatorUser.profileImage  });
+    res.status(201).json({ message: 'Creator user created successfully', usertype: user.userType, token: user.token, fullName: Creatoruser.fullName, profileImage: Creatoruser.profileImage });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 //update user profile
-const updateUserProfile = async (req, res) => {
+const updateuserProfile = async (req, res) => {
   try {
     // Get the token
     const token = req.headers.authorization;
@@ -304,24 +310,24 @@ const updateUserProfile = async (req, res) => {
     const userId = decoded.userId;
 
     // Check if user exists
-    const user = await User.findById(userId);
+    const user = await user.findById(userId);
     if (!user) {
-      return res.status(404).json({ status: 'error', message: 'User not found' });
+      return res.status(404).json({ status: 'error', message: 'user not found' });
     }
 
     // Update bio
     if (req.body.bio) {
-      User.bio = req.body.bio;
+      user.bio = req.body.bio;
     }
 
     // Update profile picture
     if (req.file) {
-      User.profilePicture = req.file.path;
+      user.profilePicture = req.file.path;
     }
 
-    await User.save();
+    await user.save();
 
-    res.status(200).json({ status: 'success', message: 'User profile updated successfully' });
+    res.status(200).json({ status: 'success', message: 'user profile updated successfully' });
   } catch (err) {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(401).json({ status: 'error', message: 'Invalid or expired token' });
@@ -348,24 +354,24 @@ const updateCreatorProfile = async (req, res) => {
     // Check if user exists
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ status: 'error', message: 'User not found' });
+      return res.status(404).json({ status: 'error', message: 'user not found' });
     }
 
     // Update 
     if (req.body.address) {
-      CreatorUser.address = req.body.address;
+      Creatoruser.address = req.body.address;
     }
     if (req.body.bankName) {
-      CreatorUser.bankName = req.body.bankName;
+      Creatoruser.bankName = req.body.bankName;
     }
     if (req.body.mpesaNumber) {
-      CreatorUser.mpesaNumber= req.body.mpesaNumber;
+      Creatoruser.mpesaNumber = req.body.mpesaNumber;
     }
     if (req.body.bankAccNumber) {
-      CreatorUser.bankAccNumber= req.body.bankAccNumber;
+      Creatoruser.bankAccNumber = req.body.bankAccNumber;
     }
-    
-    await CreatorUser.save();
+
+    await Creatoruser.save();
 
     res.status(200).json({ status: 'success', message: 'Creator profile updated successfully' });
   } catch (err) {
@@ -379,4 +385,4 @@ const updateCreatorProfile = async (req, res) => {
 
 
 
-export default { updateCreatorProfile, updateUserProfile, createCreatorUser, registerUser, loginUser, verifymyOTP, resendOTP, resetPassword, updatePasswordWithOTP, updatePassword};
+export default { updateCreatorProfile, updateuserProfile, createCreatoruser, registeruser, loginuser, verifymyOTP, resendOTP, resetPassword, updatePasswordWithOTP, updatePassword };

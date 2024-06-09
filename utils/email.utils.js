@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
-import validator from 'validator'; // For email validation
-import dotenv from 'dotenv'; // For loading environment variables
+import validator from 'validator'; 
+import dotenv from 'dotenv';
 dotenv.config();
 
 // SMTP Configuration (using App Password)
