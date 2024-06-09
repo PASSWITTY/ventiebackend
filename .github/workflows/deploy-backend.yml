@@ -21,11 +21,15 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
+      # Add a build step here if needed
+      #- name: Build for Production
+      #  run: npm run build 
+
       - name: Set up Git credentials
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin https://x-access-token:${{ secrets.GH_PAT }}@github.com/PASSWITTY/ventiebackend.git
+          git remote set-url origin https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository }}
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
@@ -37,6 +41,7 @@ jobs:
             cd /home/admin/ventiebackend
             git pull origin main
             npm install
+            # Check if the process is running and start/restart accordingly
             if pm2 list | grep ventiebackend; then
               pm2 restart ventiebackend
             else
