@@ -5,8 +5,8 @@ const generateOTP = () => {
   return otp;
 };
 
-const verifyOTP = (inputOTP, storedOTP) => {
-  return inputOTP === storedOTP;
-};
+// const verifyOTP = (inputOTP, storedOTP) => {
+//   return inputOTP === storedOTP;
+// };
 
-export { generateOTP, verifyOTP };
+export { generateOTP };

@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors'
+import session from 'express-session'
 import connectDB from './config/db.js';
 import authRoutes from './services/auth_service/routes/auth.routes.js';
 
@@ -17,6 +18,7 @@ app.use(function(req, res, next) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   next();
 });
+
 
 // Connect to MongoDB
 connectDB();
