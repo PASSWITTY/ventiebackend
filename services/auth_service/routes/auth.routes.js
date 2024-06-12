@@ -20,6 +20,8 @@ router.post('/reset-pwd-otp', authController.resetPassword);
 
 router.post('/update-forgot-pwd', authController.updatePasswordWithOTP);
 
+router.put('/update-password', authController.updatePassword);
+
 router.post('/create-creator-user',uploadMiddlewareMM, authController.createCreatoruser);
 
 router.put('/update-user-profile', uploadMiddlewarePP, authController.updateuserProfile);

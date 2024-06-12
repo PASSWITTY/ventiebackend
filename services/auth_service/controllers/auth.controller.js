@@ -75,7 +75,7 @@ const loginuser = async (req, res) => {
     user.token = token;
     await user.save();
 
-    res.status(200).json({ message: 'Login Succesfull',status: '200', userId: user._id, username: user.username, token });
+    res.status(200).json({ message: 'Login Succesfull',status: '200',userType:user.userType, userId: user._id, username: user.username, token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ status: 'error', message: 'Internal server error' });
@@ -222,15 +222,35 @@ const updatePasswordWithOTP = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
-// Update password
+
 const updatePassword = async (req, res) => {
   try {
-    const { userId, currentPassword, newPassword } = req.body;
+    
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ status: 'error', message: 'Authorization header missing' });
+    }
+
+    // Verify the token
+    const [bearer, token] = authHeader.split(' ');
+    if (bearer !== 'Bearer' || !token) {
+      return res.status(401).json({ status: 'error', message: 'Invalid token format' });
+    }
+
+    let userId;
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      userId = decoded.userId;
+    } catch (err) {
+      return res.status(403).json({ status: 'error', message: 'Invalid token' });
+    }
+
+    const { currentPassword, newPassword } = req.body;
 
     // Check if user exists
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(400).json({ status: 'error', message: 'user not found' });
+      return res.status(400).json({ status: 'error', message: 'User not found' });
     }
 
     // Check if current password is correct
@@ -246,7 +266,7 @@ const updatePassword = async (req, res) => {
     user.password = hashedPassword;
     await user.save();
 
-    res.status(200).json({ status: 'success', message: 'Password updated successfully' });
+    res.status(200).json({ status: '200', message: 'Password updated successfully' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ status: 'error', message: 'Internal server error' });
