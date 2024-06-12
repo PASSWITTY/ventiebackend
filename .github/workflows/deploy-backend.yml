@@ -37,7 +37,8 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/admin/ventiebackend || exit
-            git pull origin main || exit
+            git config --global credential.helper store
+            git pull https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main || exit
             npm install || exit
             pm2 restart ventiebackend || exit
 
