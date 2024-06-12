@@ -29,7 +29,7 @@ app.use('/api/auth', authRoutes);
 
 //test route
 app.get('/', (req, res) => {
-  res.send('Hello, World!');
+  res.send('Hello, World! thiss is a test');
 });
 
 // Error handling 
