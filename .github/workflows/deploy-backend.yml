@@ -32,16 +32,16 @@ jobs:
       - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.EC2_HOST }} # Your EC2 public IP or domain name
-          username: ${{ secrets.EC2_USERNAME }} # Your EC2 username
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd /home/admin/ventiebackend || exit
             git config --global credential.helper store
             git pull https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main || exit
-            npm install || exit
+            . $HOME/.nvm/nvm.sh && nvm use 22 && npm install || exit
             pm2 restart ventiebackend || exit
-
+            
       - name: Notify on Failure
         if: failure()
         run: echo "Deployment to EC2 failed"
