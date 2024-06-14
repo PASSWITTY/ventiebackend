@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
-import validator from 'validator'; // For email validation
-import dotenv from 'dotenv'; // For loading environment variables
+import validator from 'validator'; 
+import dotenv from 'dotenv';
 dotenv.config();
 
 // SMTP Configuration (using App Password)
@@ -53,9 +53,9 @@ const sendOTPEmail = async (email, otp) => {
     emailsSent++;
     setTimeout(() => {
       emailsSent--;
-    }, 60000); // Reset counter after 1 minute
+    }, 60000); 
   } catch (error) {
-    console.error('Failed to send OTP email:', error.message); // Log only the error message
+    console.error('Failed to send OTP email:', error.message);
   }
 };
 
