@@ -1,28 +1,23 @@
-import multer from 'multer';
-import multerS3 from 'multer-s3';
-import { S3Client } from '@aws-sdk/client-s3';
+import AWS from 'aws-sdk';
+import fs from 'fs';
 
-// AWS S3 Configuration 
-const s3 = new S3Client({
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID, // Load from environment variables
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-  },
-  region: process.env.AWS_REGION // Set your S3 bucket region
+
+AWS.config.update({
+  accessKeyId: 'YOUR_ACCESS_KEY_ID',
+  secretAccessKey: 'YOUR_SECRET_ACCESS_KEY',
+  region: 'YOUR_AWS_REGION',
 });
 
-const storage = multerS3({
-  s3: s3,
-  bucket: process.env.S3_BUCKET_NAME, // Your S3 bucket name
-  acl: 'public-read',  //Make uploaded files publicly accessible
-  contentType: multerS3.AUTO_CONTENT_TYPE, // Automatically detect content type
-  key: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const extension = path.extname(file.originalname);
-    cb(null, `uploads/${file.fieldname}-${uniqueSuffix}${extension}`);
-  }
-});
+const s3 = new AWS.S3();
 
-const upload = multer({ storage });
+const uploadToS3 = (file) => {
+  const fileContent = fs.readFileSync(file.path);
 
-export default upload;
+  const params = {
+    Bucket: 'YOUR_BUCKET_NAME',
+    Key: `uploads/${file.originalname}`,
+    Body: fileContent,
+  };
+
+  return s3.upload(params).promise();
+};

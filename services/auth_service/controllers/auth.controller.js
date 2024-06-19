@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import uploadToS3 from '../../../utils/fileUpload.js'
 import User from '../models/user.model.js';
 import Creatoruser from '../models/creatorUser.model.js';
 import { sendOTPEmail } from '../../../utils/email.utils.js';
@@ -222,7 +223,7 @@ const updatePasswordWithOTP = async (req, res) => {
     res.status(500).json({ message: 'Internal server error' });
   }
 };
-
+//update loggedin password
 const updatePassword = async (req, res) => {
   try {
     
@@ -280,25 +281,25 @@ const createCreatoruser = async (req, res) => {
     const idNumber = req.body.idNumber;
     const address = req.body.address;
 
-    // Extract the file paths from the request object
-    const idFrontImage = req.files.idFrontImage[0].path;
-    const idBackImage = req.files.idBackImage[0].path;
-    const profileImage = req.files.profileImage[0].path;
 
-    // Check if the user exists and is a general user (userType 0)
     const user = await User.findById(userId);
     if (!user || user.userType !== 0) {
       return res.status(400).json({ message: 'Already a creator' });
     }
+
+    // Upload images to S3
+    const idFrontImageUrl = await uploadToS3(req.files.idFrontImage[0]);
+    const idBackImageUrl = await uploadToS3(req.files.idBackImage[0]);
+    const profileImageUrl = await uploadToS3(req.files.profileImage[0]);
 
     // Create a new creator user
     const newCreatoruser = new Creatoruser({
       fullName,
       idNumber,
       address,
-      idFrontImage,
-      idBackImage,
-      profileImage,
+      idFrontImage: idFrontImageUrl.Location,
+      idBackImage: idBackImageUrl.Location,
+      profileImage: profileImageUrl.Location,
     });
 
     // Save the creator user to the database
@@ -308,12 +309,20 @@ const createCreatoruser = async (req, res) => {
     user.userType = 1;
     await user.save();
 
-    res.status(201).json({ message: 'Creator user created successfully', usertype: user.userType, token: user.token, fullName: Creatoruser.fullName, profileImage: Creatoruser.profileImage });
+    res.status(201).json({
+      message: 'Creator user created successfully',
+      usertype: user.userType,
+      token: user.token,
+      fullName: newCreatoruser.fullName,
+      profileImage: newCreatoruser.profileImage,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+
 //update user profile
 const updateuserProfile = async (req, res) => {
   try {
@@ -330,9 +339,9 @@ const updateuserProfile = async (req, res) => {
     const userId = decoded.userId;
 
     // Check if user exists
-    const user = await user.findById(userId);
+    const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ status: 'error', message: 'user not found' });
+      return res.status(404).json({ status: 'error', message: 'User not found' });
     }
 
     // Update bio
@@ -342,12 +351,13 @@ const updateuserProfile = async (req, res) => {
 
     // Update profile picture
     if (req.file) {
-      user.profilePicture = req.file.path;
+      const { Location: imageUrl } = await uploadToS3(req.file);
+      user.profilePicture = imageUrl;
     }
 
     await user.save();
 
-    res.status(200).json({ status: 'success', message: 'user profile updated successfully' });
+    res.status(200).json({ status: 'success', message: 'User profile updated successfully' });
   } catch (err) {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(401).json({ status: 'error', message: 'Invalid or expired token' });
@@ -356,6 +366,7 @@ const updateuserProfile = async (req, res) => {
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };
+
 //Update creator profile
 const updateCreatorProfile = async (req, res) => {
   try {
