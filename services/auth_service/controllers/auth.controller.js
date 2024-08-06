@@ -1,7 +1,8 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import uploadToS3 from '../../../utils/fileUpload.js'
 import User from '../models/user.model.js';
-import Creatoruser from '../models/creatorUser.model.js';
+import CreatorUser from '../models/creatorUser.model.js';
 import { sendOTPEmail } from '../../../utils/email.utils.js';
 import { generateOTP, verifyOTP } from '../../../utils/otp.utils.js';
 import { Username } from '../../../utils/username.utils.js'
@@ -223,6 +224,7 @@ const updatePasswordWithOTP = async (req, res) => {
   }
 };
 
+//update loggedin password
 const updatePassword = async (req, res) => {
   try {
     
@@ -273,32 +275,36 @@ const updatePassword = async (req, res) => {
   }
 };
 // Creator user 
+
 const createCreatoruser = async (req, res) => {
   try {
-    const userId = req.body.userId;
-    const fullName = req.body.fullName;
-    const idNumber = req.body.idNumber;
-    const address = req.body.address;
+    const { userId, fullName, idNumber, address } = req.body;
 
-    // Extract the file paths from the request object
-    const idFrontImage = req.files.idFrontImage[0].path;
-    const idBackImage = req.files.idBackImage[0].path;
-    const profileImage = req.files.profileImage[0].path;
-
-    // Check if the user exists and is a general user (userType 0)
+    // Check if user exists and is not already a creator
     const user = await User.findById(userId);
-    if (!user || user.userType !== 0) {
-      return res.status(400).json({ message: 'Already a creator' });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    if (user.userType === 1) {
+      return res.status(400).json({ message: 'User is already a creator' });
     }
 
+    // Upload images to S3 and get the URLs
+    const idFrontImageUrl = await uploadToS3(req.files.idFrontImage[0]);
+    const idBackImageUrl = await uploadToS3(req.files.idBackImage[0]);
+    const profileImageUrl = await uploadToS3(req.files.profileImage[0]);
+
+    console.log('Uploaded image URLs:', { idFrontImageUrl, idBackImageUrl, profileImageUrl });
+
     // Create a new creator user
-    const newCreatoruser = new Creatoruser({
+    const newCreatoruser = new CreatorUser({
+      userId: userId,
       fullName,
       idNumber,
       address,
-      idFrontImage,
-      idBackImage,
-      profileImage,
+      idFrontImage: idFrontImageUrl,
+      idBackImage: idBackImageUrl,
+      profileImage: profileImageUrl,
     });
 
     // Save the creator user to the database
@@ -308,17 +314,25 @@ const createCreatoruser = async (req, res) => {
     user.userType = 1;
     await user.save();
 
-    res.status(201).json({ message: 'Creator user created successfully', usertype: user.userType, token: user.token, fullName: Creatoruser.fullName, profileImage: Creatoruser.profileImage });
+    res.status(201).json({
+      message: 'Creator user created successfully',
+      userType: user.userType,
+      token: user.token,
+      fullName: newCreatoruser.fullName,
+      profileImage: newCreatoruser.profileImage,
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: 'Internal server error', error: err.message });
   }
 };
+
+
 //update user profile
 const updateuserProfile = async (req, res) => {
   try {
     // Get the token
-    const token = req.headers.authorization;
+    const token = req.headers.authorization?.split(' ')[1];  // Extract token from "Bearer <token>"
 
     // Check token
     if (!token) {
@@ -330,9 +344,9 @@ const updateuserProfile = async (req, res) => {
     const userId = decoded.userId;
 
     // Check if user exists
-    const user = await user.findById(userId);
+    const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ status: 'error', message: 'user not found' });
+      return res.status(404).json({ status: 'error', message: 'User not found' });
     }
 
     // Update bio
@@ -342,12 +356,20 @@ const updateuserProfile = async (req, res) => {
 
     // Update profile picture
     if (req.file) {
-      user.profilePicture = req.file.path;
+      const imageUrl = await uploadToS3(req.file);
+      user.profilePicture = imageUrl;
     }
 
     await user.save();
 
-    res.status(200).json({ status: 'success', message: 'user profile updated successfully' });
+    res.status(200).json({ 
+      status: 'success', 
+      message: 'User profile updated successfully',
+      user: {
+        bio: user.bio,
+        profilePicture: user.profilePicture
+      }
+    });
   } catch (err) {
     if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       return res.status(401).json({ status: 'error', message: 'Invalid or expired token' });
@@ -356,6 +378,8 @@ const updateuserProfile = async (req, res) => {
     res.status(500).json({ status: 'error', message: 'Internal server error' });
   }
 };
+
+
 //Update creator profile
 const updateCreatorProfile = async (req, res) => {
   try {
@@ -404,5 +428,96 @@ const updateCreatorProfile = async (req, res) => {
 };
 
 
+const getUserDetails = async (req, res) => {
+  try {
+    // Get the token from the Authorization header
+    const token = req.headers.authorization?.split(' ')[1];
 
-export default { updateCreatorProfile, updateuserProfile, createCreatoruser, registeruser, loginuser, verifymyOTP, resendOTP, resetPassword, updatePasswordWithOTP, updatePassword };
+    // Check if token exists
+    if (!token) {
+      return res.status(401).json({ status: 'error', message: 'No token provided' });
+    }
+
+    // Verify the token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ status: 'error', message: 'Token has expired' });
+      }
+      return res.status(401).json({ status: 'error', message: 'Invalid token' });
+    }
+
+    // Extract userId from the decoded token
+    const userId = decoded.userId;
+
+    // Fetch user details from the database
+    const user = await User.findById(userId).select('-password');  // Exclude password from the response
+
+    // Check if user exists
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found' });
+    }
+
+    // Send the user details
+    res.status(200).json({
+      status: 'success',
+      data: {
+        user
+      }
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+};
+
+const getCreatorUserDetails = async (req, res) => {
+  try {
+    // Get the token from the Authorization header
+    const token = req.headers.authorization?.split(' ')[1];
+
+    // Check if token exists
+    if (!token) {
+      return res.status(401).json({ status: 'error', message: 'No token provided' });
+    }
+
+    // Verify the token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({ status: 'error', message: 'Token has expired' });
+      }
+      return res.status(401).json({ status: 'error', message: 'Invalid token' });
+    }
+
+    // Extract userId from the decoded token
+    const userId = decoded.userId;
+
+    // Fetch user details from the database
+    const creatoruser = await CreatorUser.findById(userId).select('-password');  // Exclude password from the response
+
+    // Check if user exists
+    if (!creatoruser) {
+      return res.status(404).json({ status: 'error', message: 'creator not found' });
+    }
+
+    // Send the user details
+    res.status(200).json({
+      status: 'success',
+      data: {
+        creatoruser
+      }
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+};
+
+export default {getCreatorUserDetails, getUserDetails, updateCreatorProfile, updateuserProfile, createCreatoruser, registeruser, loginuser, verifymyOTP, resendOTP, resetPassword, updatePasswordWithOTP, updatePassword };
