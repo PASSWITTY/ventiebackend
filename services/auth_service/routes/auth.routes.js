@@ -25,7 +25,7 @@ router.post('/update-forgot-pwd', authController.updatePasswordWithOTP);
 
 router.put('/update-password', authController.updatePassword);
 
-router.post('/create_creator_user',
+router.post('/create-creator-user',
   upload.fields([{ name: 'idFrontImage', maxCount: 1 },{ name: 'idBackImage', maxCount: 1 },{ name: 'profileImage', maxCount: 1 }]), 
   authController.createCreatoruser
 );
@@ -34,5 +34,9 @@ router.post('/create_creator_user',
 router.put('/update-user-profile',upload.single('profilePicture'),  authController.updateuserProfile);
 
 router.put('/update-creator-profile', authController.updateCreatorProfile);
+
+router.get('/all-user-details', authController.getUserDetails);
+
+router.get('/all-creator-details', authController.getCreatorUserDetails);
 
 export default router;
