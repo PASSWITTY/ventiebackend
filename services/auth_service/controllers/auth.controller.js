@@ -114,7 +114,7 @@ const verifymyOTP = async (req, res) => {
     await user.save();
 
 
-    res.status(200).json({ message: 'OTP verified successfully',status: '200', userId: user._id, username: user.username, token });
+    res.status(200).json({ message: 'OTP verified successfully',status: '200',userType: user.userType, userId: user._id, username: user.username, token });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Internal server error OTP' });
