@@ -36,7 +36,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/admin/ventiebackend || exit
+            cd /home/ubuntu/ventiebackend || exit
             git config --global credential.helper store
             git pull https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main || exit
             . $HOME/.nvm/nvm.sh && nvm use 22 && npm install || exit
